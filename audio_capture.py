@@ -4,6 +4,7 @@ Mic + system audio capture.
  - Dictation mode: mic only → float32 callbacks
  - Meeting mode:   stereo WAV writer (mic L, system R) → file on disk
 """
+from __future__ import annotations
 import os
 import queue
 import threading

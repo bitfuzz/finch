@@ -4,6 +4,7 @@ Dual-model ASR engine.
   - StreamingTranscriber: Parakeet v3 near-real-time chunks (dictation default)
   - OfflineTranscriber:   Parakeet v3 batch (meeting post-processing)
 """
+from __future__ import annotations
 import os
 import json
 import queue

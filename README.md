@@ -7,6 +7,7 @@ Finch uses a hybrid model approach:
 
 ## Prerequisites
 - Python 3.10+
+- `portaudio` (required for PyAudio on macOS/Linux)
 - `ffmpeg` (optional but recommended for certain audio handling)
 
 ## Quick Setup

@@ -6,6 +6,16 @@ echo "[Finch] Setting up environment..."
 # Goto script directory
 cd "$(dirname "$0")"
 
+# Handle macOS dependencies
+if [ "$(uname)" = "Darwin" ]; then
+    if command -v brew &> /dev/null; then
+        echo "[Finch] Ensuring portaudio is installed (required for PyAudio)..."
+        brew install portaudio || true
+    else
+        echo "[Finch] WARNING: Homebrew not found. Please install portaudio manually."
+    fi
+fi
+
 # Create virtual environment if it doesn't exist
 if [ ! -d "venv" ]; then
     echo "[Finch] Creating virtual environment..."

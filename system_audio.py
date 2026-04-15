@@ -2,6 +2,7 @@
 system_audio.py
 Optional system output mute for dictation.
 """
+from __future__ import annotations
 import os
 
 

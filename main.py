@@ -6,6 +6,7 @@ Finch Transcriber entry point.
  - Dictation:  Parakeet v3 chunks -> keyboard.write()
  - Meeting:    Raw stereo WAV → Parakeet v3 batch after stop
 """
+from __future__ import annotations
 import os
 import ctypes
 import threading
