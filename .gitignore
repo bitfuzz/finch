@@ -1,0 +1,30 @@
+# Virtual Environments
+venv/
+env/
+.venv/
+.Python
+
+# Finch Specific
+models/
+recordings/
+*.log
+-p/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Environment Variables
+.env
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS Specific
+.DS_Store
+Thumbs.db

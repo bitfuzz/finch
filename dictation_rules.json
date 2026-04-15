@@ -1,0 +1,74 @@
+{
+  "filler_words": [
+    "mm",
+    "mmm",
+    "um",
+    "uh",
+    "erm",
+    "er",
+    "ah"
+  ],
+  "custom_words": {
+    "api": "API",
+    "apis": "APIs",
+    "cpu": "CPU",
+    "gpu": "GPU",
+    "ip": "IP",
+    "ips": "IPs",
+    "llm": "LLM",
+    "ui": "UI",
+    "url": "URL",
+    "urls": "URLs",
+    "vad": "VAD"
+  },
+  "custom_phrases": {
+  },
+  "fuzzy_threshold": 0.84,
+  "allowed_languages": [
+    "en",
+    "english"
+  ],
+  "question_starters": [
+    "am",
+    "are",
+    "can",
+    "could",
+    "did",
+    "do",
+    "does",
+    "how",
+    "is",
+    "should",
+    "was",
+    "were",
+    "what",
+    "when",
+    "where",
+    "which",
+    "who",
+    "why",
+    "will",
+    "would"
+  ],
+  "profiles": {
+    "chrome.exe": {
+      "custom_words": {
+        "browserstack": "BrowserStack"
+      }
+    },
+    "code.exe": {
+      "custom_words": {
+        "github": "GitHub",
+        "typescript": "TypeScript",
+        "javascript": "JavaScript"
+      }
+    }
+  },
+  "llm": {
+    "enabled": false,
+    "endpoint": "",
+    "model": "",
+    "api_key_env": "OPENAI_API_KEY",
+    "timeout_s": 2.5
+  }
+}

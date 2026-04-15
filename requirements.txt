@@ -1,0 +1,10 @@
+pyaudio
+soundcard
+pystray
+Pillow
+sherpa-onnx
+keyboard
+numpy
+pycaw
+comtypes
+psutil
