@@ -4,7 +4,7 @@ Borderless floating visualizer for dictation mode.
 Runs in its own thread (tkinter mainloop).
 """
 import threading
-import tkinter as tk
+import threading
 
 
 class DictationUI:
@@ -18,6 +18,7 @@ class DictationUI:
     # ------------------------------------------------------------------
     def run(self):
         """Call once in a dedicated thread."""
+        import tkinter as tk
         self.root = tk.Tk()
         self.root.overrideredirect(True)    # no title bar
         self.root.attributes("-topmost", True)
@@ -60,11 +61,15 @@ class DictationUI:
         self.root.after(0, lambda: self.canvas.coords(self._bar, 0, 4, width, 20))
 
     def show(self):
+        if self.root is None:
+            return
         self._ready.wait()
         self._visible = True
         self.root.after(0, self.root.deiconify)
 
     def hide(self):
+        if self.root is None:
+            return
         self._visible = False
         if self.root:
             self.root.after(0, self.root.withdraw)

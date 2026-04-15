@@ -166,7 +166,10 @@ class App:
 
     def run(self):
         # Dictation UI (tkinter) must run on its own thread
-        run_ui_threaded(self.ui)
+        if os.environ.get("FINCH_NO_UI") == "1":
+            print("[Finch] Running without Dictation UI (FINCH_NO_UI=1).")
+        else:
+            run_ui_threaded(self.ui)
 
         # Hotkeys
         keyboard.add_hotkey("ctrl+space",  self._on_dictation_press, suppress=True)
