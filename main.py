@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 import ctypes
 import threading
-import keyboard
+import pynput
 import pystray
 from PIL import Image, ImageDraw
 
@@ -80,7 +80,8 @@ class App:
         print("[Finch] Dictation stopped")
 
     def _on_dictation_text(self, text: str):
-        keyboard.write(text + " ")
+        controller = pynput.keyboard.Controller()
+        controller.type(text + " ")
         print(f"  Dictated: {text}")
 
     # ------------------------------------------------------------------
@@ -171,10 +172,34 @@ class App:
         else:
             run_ui_threaded(self.ui)
 
-        # Hotkeys
-        keyboard.add_hotkey("ctrl+space",  self._on_dictation_press, suppress=True)
-        keyboard.on_release_key("space",   self._on_dictation_release)
-        keyboard.add_hotkey("ctrl+alt+r",  self.toggle_meeting)
+        # Hotkeys via pynput
+        self._ctrl_down = False
+        self._alt_down = False
+
+        def on_press(key):
+            if key in (pynput.keyboard.Key.ctrl, pynput.keyboard.Key.ctrl_l, pynput.keyboard.Key.ctrl_r):
+                self._ctrl_down = True
+            elif key in (pynput.keyboard.Key.alt, pynput.keyboard.Key.alt_l, pynput.keyboard.Key.alt_r, pynput.keyboard.Key.cmd, pynput.keyboard.Key.cmd_l, pynput.keyboard.Key.cmd_r):
+                self._alt_down = True  # treat cmd/alt redundantly for meeting hotkey safety
+            elif key == pynput.keyboard.Key.space:
+                if self._ctrl_down:
+                    self._on_dictation_press()
+            elif hasattr(key, 'char') and key.char and key.char.lower() == 'r':
+                if self._ctrl_down and self._alt_down:
+                    self.toggle_meeting()
+
+        def on_release(key):
+            if key in (pynput.keyboard.Key.ctrl, pynput.keyboard.Key.ctrl_l, pynput.keyboard.Key.ctrl_r):
+                self._ctrl_down = False
+            elif key in (pynput.keyboard.Key.alt, pynput.keyboard.Key.alt_l, pynput.keyboard.Key.alt_r, pynput.keyboard.Key.cmd, pynput.keyboard.Key.cmd_l, pynput.keyboard.Key.cmd_r):
+                self._alt_down = False
+            elif key == pynput.keyboard.Key.space:
+                if self._ctrl_down:
+                    pass # Don't release if they hold space but released something else? No, only on space up
+                self._on_dictation_release()
+
+        listener = pynput.keyboard.Listener(on_press=on_press, on_release=on_release)
+        listener.start()
 
         # System tray
         menu = pystray.Menu(

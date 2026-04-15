@@ -3,7 +3,7 @@ soundcard
 pystray
 Pillow
 sherpa-onnx
-keyboard
+pynput
 numpy
 pycaw; sys_platform == 'win32'
 comtypes; sys_platform == 'win32'
