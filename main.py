@@ -174,26 +174,26 @@ class App:
 
         # Hotkeys via pynput
         self._ctrl_down = False
-        self._alt_down = False
+        self._shift_down = False
 
         def on_press(key):
             if key in (pynput.keyboard.Key.ctrl, pynput.keyboard.Key.ctrl_l, pynput.keyboard.Key.ctrl_r):
                 self._ctrl_down = True
-            elif key in (pynput.keyboard.Key.alt, pynput.keyboard.Key.alt_l, pynput.keyboard.Key.alt_r, pynput.keyboard.Key.cmd, pynput.keyboard.Key.cmd_l, pynput.keyboard.Key.cmd_r):
-                self._alt_down = True  # treat cmd/alt redundantly for meeting hotkey safety
-            elif key == pynput.keyboard.Key.tab:
-                if self._alt_down:
+            elif key in (pynput.keyboard.Key.shift, pynput.keyboard.Key.shift_l, pynput.keyboard.Key.shift_r):
+                self._shift_down = True
+            elif key == pynput.keyboard.Key.space:
+                if self._ctrl_down:
                     self._on_dictation_press()
             elif hasattr(key, 'char') and key.char and key.char.lower() == 'r':
-                if self._ctrl_down and self._alt_down:
+                if self._ctrl_down and self._shift_down:
                     self.toggle_meeting()
 
         def on_release(key):
             if key in (pynput.keyboard.Key.ctrl, pynput.keyboard.Key.ctrl_l, pynput.keyboard.Key.ctrl_r):
                 self._ctrl_down = False
-            elif key in (pynput.keyboard.Key.alt, pynput.keyboard.Key.alt_l, pynput.keyboard.Key.alt_r, pynput.keyboard.Key.cmd, pynput.keyboard.Key.cmd_l, pynput.keyboard.Key.cmd_r):
-                self._alt_down = False
-            elif key == pynput.keyboard.Key.tab:
+            elif key in (pynput.keyboard.Key.shift, pynput.keyboard.Key.shift_l, pynput.keyboard.Key.shift_r):
+                self._shift_down = False
+            elif key == pynput.keyboard.Key.space:
                 self._on_dictation_release()
 
         listener = pynput.keyboard.Listener(on_press=on_press, on_release=on_release)
@@ -201,8 +201,8 @@ class App:
 
         # System tray
         menu = pystray.Menu(
-            pystray.MenuItem("Dictation  (hold Option+Tab)", lambda: self.toggle_dictation()),
-            pystray.MenuItem("Meeting    (Ctrl+Alt+R)", lambda: self.toggle_meeting()),
+            pystray.MenuItem("Dictation  (hold Ctrl+Space)", lambda: self.toggle_dictation()),
+            pystray.MenuItem("Meeting    (Ctrl+Shift+R)", lambda: self.toggle_meeting()),
             pystray.MenuItem("Reload Dictation Rules",  lambda: self._reload_dictation_rules()),
             pystray.MenuItem("Open Dictation Rules",    lambda: self._open_dictation_rules()),
             pystray.Menu.SEPARATOR,
@@ -211,7 +211,7 @@ class App:
         self.icon = pystray.Icon(
             "Finch", self._make_icon_image(), "Finch Transcriber", menu
         )
-        print("[Finch] Ready — hold Option+Tab: dictation | Ctrl+Alt+R: meeting")
+        print("[Finch] Ready — hold Ctrl+Space: dictation | Ctrl+Shift+R: meeting")
         self.icon.run()
 
 
