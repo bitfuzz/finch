@@ -11,6 +11,9 @@ if [ "$(uname)" = "Darwin" ]; then
     if command -v brew &> /dev/null; then
         echo "[Finch] Ensuring portaudio is installed (required for PyAudio)..."
         brew install portaudio || true
+        # Fix missing headers for PyAudio installation on Apple Silicon
+        export CFLAGS="-I$(brew --prefix)/include"
+        export LDFLAGS="-L$(brew --prefix)/lib"
     else
         echo "[Finch] WARNING: Homebrew not found. Please install portaudio manually."
     fi
