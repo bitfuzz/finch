@@ -763,12 +763,25 @@ class StreamingTranscriber:
 
 
 # ---------------------------------------------------------------------------
+# MeetingPostProcessor  (DictationPostProcessor but LLM always disabled)
+# ---------------------------------------------------------------------------
+class MeetingPostProcessor(DictationPostProcessor):
+    """Same local cleaning pipeline as dictation, but LLM refiner disabled."""
+
+    def __init__(self, rules_path: str = DICTATION_RULES_PATH):
+        super().__init__(rules_path)
+        # Force LLM off regardless of env/config
+        self.llm = LLMTextRefiner(config={"enabled": False})
+
+
+# ---------------------------------------------------------------------------
 # OfflineTranscriber  (Parakeet v3 – batch post-meeting)
 # ---------------------------------------------------------------------------
 class OfflineTranscriber:
     def __init__(self, model_dir: str = MODEL_DIR_OFFLINE):
         self.model_dir = model_dir
         self.recognizer = None
+        self.post_processor = MeetingPostProcessor()
 
     # ------------------------------------------------------------------
     def initialize(self):
@@ -820,9 +833,12 @@ class OfflineTranscriber:
             stream = self.recognizer.create_stream()
             stream.accept_waveform(sr, chunk.tolist())
             self.recognizer.decode_stream(stream)
-            text = stream.result.text.strip()
+            raw_text = stream.result.text.strip()
 
-            if text:
+            if raw_text:
+                text = self.post_processor.clean(raw_text)
+                if not text:
+                    continue
                 timestamp = self._fmt_ts(i / sr)
                 line = f"[{timestamp}] {text}"
                 transcript_lines.append(line)
