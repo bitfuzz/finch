@@ -852,11 +852,15 @@ class OfflineTranscriber:
         sampwidth = wf.getsampwidth() if hasattr(wf, "_sampwidth") else 2
         samples = np.frombuffer(raw, dtype=np.int16)
 
-        # If stereo, take left channel (mic)
+        # If stereo, mix left (mic) and right (system) channels to mono
         if n_channels == 2:
-            samples = samples[::2]
+            left = samples[0::2].astype(np.float32)
+            right = samples[1::2].astype(np.float32)
+            samples_float = (left + right) / 2.0
+        else:
+            samples_float = samples.astype(np.float32)
 
-        return samples.astype(np.float32) / 32768.0, sr
+        return samples_float / 32768.0, sr
 
     @staticmethod
     def _fmt_ts(seconds: float) -> str:
