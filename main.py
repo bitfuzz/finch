@@ -60,24 +60,56 @@ class App:
         if self.mode == "dictation":
             self._stop_dictation()
 
+    # Sound map: event -> (mac_sound, win_alias)
+    _SOUNDS = {
+        "dictation_start":  ("Glass.aiff",  "SystemAsterisk"),
+        "dictation_stop":   ("Pop.aiff",    "SystemHand"),
+        "meeting_start":    ("Hero.aiff",   "SystemExclamation"),
+        "meeting_stop":     ("Submarine.aiff", "SystemNotification"),
+        "mic_mute":         ("Tink.aiff",   "SystemHand"),
+        "mic_unmute":       ("Tink.aiff",   "SystemAsterisk"),
+    }
+
     def _play_sound(self, event: str):
+        mac_sound, win_alias = self._SOUNDS.get(event, ("Pop.aiff", "SystemHand"))
         def _play():
             try:
                 if sys.platform == "darwin":
-                    sound = "Glass.aiff" if event == "start" else "Pop.aiff"
-                    os.system(f"afplay /System/Library/Sounds/{sound}")
+                    os.system(f"afplay /System/Library/Sounds/{mac_sound}")
                 elif sys.platform == "win32":
                     import winsound
-                    sound = "SystemAsterisk" if event == "start" else "SystemHand"
-                    winsound.PlaySound(sound, winsound.SND_ALIAS | winsound.SND_ASYNC)
+                    winsound.PlaySound(win_alias, winsound.SND_ALIAS | winsound.SND_ASYNC)
             except Exception:
                 pass
         threading.Thread(target=_play, daemon=True).start()
 
+    def _notify(self, title: str, message: str):
+        def _send():
+            try:
+                if sys.platform == "darwin":
+                    escaped_msg = message.replace('"', '\\"')
+                    escaped_title = title.replace('"', '\\"')
+                    os.system(
+                        f'osascript -e \'display notification "{escaped_msg}" with title "{escaped_title}"\''
+                    )
+                elif sys.platform == "win32":
+                    # Use PowerShell toast notification
+                    ps = (
+                        f'[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType=WindowsRuntime] | Out-Null; '
+                        f'$t = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent(1); '
+                        f'$t.GetElementsByTagName("text")[0].AppendChild($t.CreateTextNode("{title}: {message}")) | Out-Null; '
+                        f'[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("Finch").Show([Windows.UI.Notifications.ToastNotification]::new($t))'
+                    )
+                    os.system(f'powershell -Command "{ps}"')
+            except Exception:
+                pass
+        threading.Thread(target=_send, daemon=True).start()
+
     def _start_dictation(self):
         self.mode = "dictation"
         self.streaming.set_context(self._foreground_process_name())
-        self._play_sound("start")
+        self._play_sound("dictation_start")
+        self._update_icon()
         self.system_audio.mute()
         self.ui.show()
         self.streaming.start(self._on_dictation_text)
@@ -92,8 +124,9 @@ class App:
         self.system_audio.restore()
         self.streaming.stop()
         self.ui.hide()
-        self._play_sound("stop")
+        self._play_sound("dictation_stop")
         self.mode = None
+        self._update_icon()
         print("[Finch] Dictation stopped")
 
     def _on_dictation_text(self, text: str):
@@ -115,29 +148,37 @@ class App:
 
     def _start_meeting(self):
         self.mode = "meeting"
+        self._play_sound("meeting_start")
+        self._update_icon()
         self.audio.start_meeting()
         print("[Finch] Meeting recording started")
 
     def _stop_meeting(self):
         wav_path = self.audio.stop()
         self.mode = None
+        self._play_sound("meeting_stop")
+        self._update_icon()
         print("[Finch] Meeting recording stopped")
         if wav_path:
             self._transcribe_meeting_async(wav_path)
 
     def _transcribe_meeting_async(self, wav_path: str):
         print(f"[Finch] Transcribing {wav_path} in background …")
+        def _on_done(path):
+            print(f"[Finch] Transcript saved → {path}")
+            self._notify("Finch", f"Meeting transcript ready: {os.path.basename(path)}")
         self.offline.transcribe_file(
             wav_path,
             on_text=lambda line: print(f"  {line}"),
-            on_done=lambda path: print(f"[Finch] Transcript saved → {path}"),
+            on_done=_on_done,
         )
 
     def toggle_mic_mute(self):
         self.audio.mic_muted = not self.audio.mic_muted
         state = "MUTED" if self.audio.mic_muted else "LIVE"
         print(f"[Finch] Microphone is now {state}")
-        self._play_sound("stop" if self.audio.mic_muted else "start")
+        self._play_sound("mic_mute" if self.audio.mic_muted else "mic_unmute")
+        self._update_icon()
         if self.icon:
             self.icon.update_menu()
 
@@ -154,11 +195,27 @@ class App:
     # ------------------------------------------------------------------
     # Tray / Lifecycle
     # ------------------------------------------------------------------
-    def _make_icon_image(self) -> Image.Image:
+    # Icon colors per state
+    _ICON_COLORS = {
+        None:        (80, 200, 120),   # green  = idle
+        "dictation": (220, 60, 60),    # red    = dictating
+        "meeting":   (240, 160, 40),   # orange = recording meeting
+        "muted":     (100, 100, 100),  # grey   = mic muted
+    }
+
+    def _make_icon_image(self, color=None) -> Image.Image:
+        if color is None:
+            color = self._ICON_COLORS.get(self.mode, (80, 200, 120))
+            if self.mode == "meeting" and self.audio.mic_muted:
+                color = self._ICON_COLORS["muted"]
         img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
         d = ImageDraw.Draw(img)
-        d.ellipse([8, 8, 56, 56], fill=(80, 200, 120))   # green circle
+        d.ellipse([8, 8, 56, 56], fill=color)
         return img
+
+    def _update_icon(self):
+        if self.icon:
+            self.icon.icon = self._make_icon_image()
 
     def _quit(self):
         self.audio.stop()
@@ -198,10 +255,16 @@ class App:
             run_ui_threaded(self.ui)
 
         # Hotkeys via pynput
+        self._keys_down = set()
         self._ctrl_down = False
         self._shift_down = False
 
         def on_press(key):
+            # Ignore repeat events
+            if key in self._keys_down:
+                return
+            self._keys_down.add(key)
+
             if key in (pynput.keyboard.Key.ctrl, pynput.keyboard.Key.ctrl_l, pynput.keyboard.Key.ctrl_r):
                 self._ctrl_down = True
             elif key in (pynput.keyboard.Key.shift, pynput.keyboard.Key.shift_l, pynput.keyboard.Key.shift_r):
@@ -217,6 +280,9 @@ class App:
                     self.toggle_mic_mute()
 
         def on_release(key):
+            if key in self._keys_down:
+                self._keys_down.remove(key)
+
             if key in (pynput.keyboard.Key.ctrl, pynput.keyboard.Key.ctrl_l, pynput.keyboard.Key.ctrl_r):
                 self._ctrl_down = False
             elif key in (pynput.keyboard.Key.shift, pynput.keyboard.Key.shift_l, pynput.keyboard.Key.shift_r):
