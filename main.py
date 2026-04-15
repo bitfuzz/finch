@@ -181,8 +181,8 @@ class App:
                 self._ctrl_down = True
             elif key in (pynput.keyboard.Key.alt, pynput.keyboard.Key.alt_l, pynput.keyboard.Key.alt_r, pynput.keyboard.Key.cmd, pynput.keyboard.Key.cmd_l, pynput.keyboard.Key.cmd_r):
                 self._alt_down = True  # treat cmd/alt redundantly for meeting hotkey safety
-            elif key == pynput.keyboard.Key.space:
-                if self._ctrl_down:
+            elif key == pynput.keyboard.Key.tab:
+                if self._alt_down:
                     self._on_dictation_press()
             elif hasattr(key, 'char') and key.char and key.char.lower() == 'r':
                 if self._ctrl_down and self._alt_down:
@@ -193,9 +193,7 @@ class App:
                 self._ctrl_down = False
             elif key in (pynput.keyboard.Key.alt, pynput.keyboard.Key.alt_l, pynput.keyboard.Key.alt_r, pynput.keyboard.Key.cmd, pynput.keyboard.Key.cmd_l, pynput.keyboard.Key.cmd_r):
                 self._alt_down = False
-            elif key == pynput.keyboard.Key.space:
-                if self._ctrl_down:
-                    pass # Don't release if they hold space but released something else? No, only on space up
+            elif key == pynput.keyboard.Key.tab:
                 self._on_dictation_release()
 
         listener = pynput.keyboard.Listener(on_press=on_press, on_release=on_release)
@@ -203,7 +201,7 @@ class App:
 
         # System tray
         menu = pystray.Menu(
-            pystray.MenuItem("Dictation  (hold Ctrl+Space)", lambda: self.toggle_dictation()),
+            pystray.MenuItem("Dictation  (hold Option+Tab)", lambda: self.toggle_dictation()),
             pystray.MenuItem("Meeting    (Ctrl+Alt+R)", lambda: self.toggle_meeting()),
             pystray.MenuItem("Reload Dictation Rules",  lambda: self._reload_dictation_rules()),
             pystray.MenuItem("Open Dictation Rules",    lambda: self._open_dictation_rules()),
@@ -213,7 +211,7 @@ class App:
         self.icon = pystray.Icon(
             "Finch", self._make_icon_image(), "Finch Transcriber", menu
         )
-        print("[Finch] Ready — hold Ctrl+Space: dictation | Ctrl+Alt+R: meeting")
+        print("[Finch] Ready — hold Option+Tab: dictation | Ctrl+Alt+R: meeting")
         self.icon.run()
 
 
