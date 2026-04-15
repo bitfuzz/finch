@@ -8,6 +8,7 @@ Finch Transcriber entry point.
 """
 from __future__ import annotations
 import os
+import sys
 import ctypes
 import threading
 import pynput
@@ -59,9 +60,24 @@ class App:
         if self.mode == "dictation":
             self._stop_dictation()
 
+    def _play_sound(self, event: str):
+        def _play():
+            try:
+                if sys.platform == "darwin":
+                    sound = "Glass.aiff" if event == "start" else "Pop.aiff"
+                    os.system(f"afplay /System/Library/Sounds/{sound}")
+                elif sys.platform == "win32":
+                    import winsound
+                    sound = "SystemAsterisk" if event == "start" else "SystemHand"
+                    winsound.PlaySound(sound, winsound.SND_ALIAS | winsound.SND_ASYNC)
+            except Exception:
+                pass
+        threading.Thread(target=_play, daemon=True).start()
+
     def _start_dictation(self):
         self.mode = "dictation"
         self.streaming.set_context(self._foreground_process_name())
+        self._play_sound("start")
         self.system_audio.mute()
         self.ui.show()
         self.streaming.start(self._on_dictation_text)
@@ -76,6 +92,7 @@ class App:
         self.system_audio.restore()
         self.streaming.stop()
         self.ui.hide()
+        self._play_sound("stop")
         self.mode = None
         print("[Finch] Dictation stopped")
 
@@ -115,6 +132,14 @@ class App:
             on_text=lambda line: print(f"  {line}"),
             on_done=lambda path: print(f"[Finch] Transcript saved → {path}"),
         )
+
+    def toggle_mic_mute(self):
+        self.audio.mic_muted = not self.audio.mic_muted
+        state = "MUTED" if self.audio.mic_muted else "LIVE"
+        print(f"[Finch] Microphone is now {state}")
+        self._play_sound("stop" if self.audio.mic_muted else "start")
+        if self.icon:
+            self.icon.update_menu()
 
     def _reload_dictation_rules(self):
         self.streaming.reload_rules()
@@ -187,6 +212,9 @@ class App:
             elif hasattr(key, 'char') and key.char and key.char.lower() == 'r':
                 if self._ctrl_down and self._shift_down:
                     self.toggle_meeting()
+            elif hasattr(key, 'char') and key.char and key.char.lower() == 'm':
+                if self._ctrl_down and self._shift_down:
+                    self.toggle_mic_mute()
 
         def on_release(key):
             if key in (pynput.keyboard.Key.ctrl, pynput.keyboard.Key.ctrl_l, pynput.keyboard.Key.ctrl_r):
@@ -203,6 +231,10 @@ class App:
         menu = pystray.Menu(
             pystray.MenuItem("Dictation  (hold Ctrl+Space)", lambda: self.toggle_dictation()),
             pystray.MenuItem("Meeting    (Ctrl+Shift+R)", lambda: self.toggle_meeting()),
+            pystray.MenuItem(
+                lambda text: f"Mic [{ 'MUTED' if self.audio.mic_muted else 'LIVE' }] (Ctrl+Shift+M)",
+                lambda: self.toggle_mic_mute()
+            ),
             pystray.MenuItem("Reload Dictation Rules",  lambda: self._reload_dictation_rules()),
             pystray.MenuItem("Open Dictation Rules",    lambda: self._open_dictation_rules()),
             pystray.Menu.SEPARATOR,
@@ -211,7 +243,7 @@ class App:
         self.icon = pystray.Icon(
             "Finch", self._make_icon_image(), "Finch Transcriber", menu
         )
-        print("[Finch] Ready — hold Ctrl+Space: dictation | Ctrl+Shift+R: meeting")
+        print("[Finch] Ready — hold Ctrl+Space: dictation | Ctrl+Shift+R: meeting | Ctrl+Shift+M: mute mic")
         self.icon.run()
 
 

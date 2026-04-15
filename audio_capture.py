@@ -15,6 +15,9 @@ import numpy as np
 import pyaudio
 import soundcard as sc
 
+import warnings
+warnings.filterwarnings("ignore", message=".*loopback recording.*")
+
 SAMPLE_RATE = 16000
 CHUNK = 1024  # frames per buffer
 
@@ -47,6 +50,7 @@ class AudioCapture:
         self._wav_path: str | None = None
         self._wav_lock = threading.Lock()
         self._running = False
+        self.mic_muted = False
 
     # ------------------------------------------------------------------
     # Public API
@@ -143,6 +147,8 @@ class AudioCapture:
 
     def _meeting_chunk(self, in_data, frame_count, time_info, status):
         mic_int = np.frombuffer(in_data, dtype=np.int16)
+        if self.mic_muted:
+            mic_int = np.zeros_like(mic_int)
 
         # Pull matching system audio frame (or silence if unavailable)
         try:
@@ -165,16 +171,28 @@ class AudioCapture:
     # System audio loopback (soundcard) – runs in thread
     # ------------------------------------------------------------------
     def _loopback_loop(self):
-        try:
-            # On macOS use BlackHole virtual device; on Windows use WASAPI loopback
-            mic = sc.get_microphone(id=str(sc.default_speaker().name), include_loopback=True)
-        except Exception:
-            # Fallback: try default loopback on Windows
-            try:
-                mic = sc.get_microphone(sc.default_speaker().name, include_loopback=True)
-            except Exception as e:
-                print(f"[AudioCapture] System audio unavailable: {e}")
+        import sys
+        mic = None
+        if sys.platform == "darwin":
+            # macOS doesn't support native loopback. Find BlackHole virtual mic.
+            for m in sc.all_microphones():
+                if "BlackHole" in m.name:
+                    mic = m
+                    break
+            if not mic:
+                print("\n[AudioCapture] 'BlackHole' audio driver not found. Cannot capture system audio on macOS.")
+                print(" -> Run: brew install blackhole-2ch\n")
                 return
+        else:
+            try:
+                # Windows WASAPI loopback
+                mic = sc.get_microphone(id=str(sc.default_speaker().name), include_loopback=True)
+            except Exception:
+                try:
+                    mic = sc.get_microphone(sc.default_speaker().name, include_loopback=True)
+                except Exception as e:
+                    print(f"\n[AudioCapture] System audio unavailable: {e}\n")
+                    return
 
         with mic.recorder(samplerate=self.sample_rate, channels=1) as rec:
             while self._running:
